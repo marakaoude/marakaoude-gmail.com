@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   MapPin,
   Calendar,
@@ -21,6 +21,8 @@ import { TicketBookingModal } from '../payment/TicketBookingModal';
 import { QRCodeSVG } from '../payment/QRCodeSVG';
 import { TicketScannerModal } from '../scanner/TicketScannerModal';
 import { INITIAL_CONCERTS, PRE_SEEDED_TICKETS } from '../../data/mockData';
+import { useFirebase } from '../../context/FirebaseContext';
+import { saveTicketToFirestore, subscribeUserTickets } from '../../services/firestoreService';
 
 interface TourScreenProps {
   onSelectStadiumForVideo: (stadiumName: string) => void;
@@ -31,11 +33,12 @@ export const TourScreen: React.FC<TourScreenProps> = ({
   onSelectStadiumForVideo,
   onOpenScanner,
 }) => {
+  const { user, isAuthReady } = useFirebase();
   const [activeSubTab, setActiveSubTab] = useState<'dates' | 'my-tickets'>('dates');
   const [bookingConcert, setBookingConcert] = useState<ConcertEvent | null>(null);
   const [isScannerOpen, setIsScannerOpen] = useState<boolean>(false);
 
-  // Stored tickets in state / localStorage
+  // Stored tickets in state / localStorage (guest fallback) or Firestore (authenticated)
   const [purchasedTickets, setPurchasedTickets] = useState<PurchasedTicket[]>(() => {
     try {
       const saved = localStorage.getItem('bgla_mac_tickets');
@@ -46,6 +49,24 @@ export const TourScreen: React.FC<TourScreenProps> = ({
     return PRE_SEEDED_TICKETS;
   });
 
+  useEffect(() => {
+    if (!isAuthReady || !user || !user.emailVerified) {
+      return;
+    }
+
+    const unsubscribe = subscribeUserTickets(user.uid, (remoteTickets) => {
+      if (remoteTickets.length > 0) {
+        setPurchasedTickets((prev) => {
+          const remoteIds = new Set(remoteTickets.map((t) => t.id));
+          const localOnly = prev.filter((t) => !remoteIds.has(t.id) && PRE_SEEDED_TICKETS.some((s) => s.id === t.id));
+          return [...remoteTickets, ...localOnly];
+        });
+      }
+    });
+
+    return () => unsubscribe();
+  }, [isAuthReady, user]);
+
   const handleTicketPurchased = (newTicket: PurchasedTicket) => {
     const updated = [newTicket, ...purchasedTickets];
     setPurchasedTickets(updated);
@@ -53,6 +74,11 @@ export const TourScreen: React.FC<TourScreenProps> = ({
       localStorage.setItem('bgla_mac_tickets', JSON.stringify(updated));
     } catch {
       // fallback
+    }
+    if (user && user.emailVerified) {
+      saveTicketToFirestore(user.uid, newTicket).catch((err) => {
+        console.error('Firestore ticket save failed:', err);
+      });
     }
     setActiveSubTab('my-tickets');
   };

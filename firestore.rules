@@ -1,0 +1,270 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net: Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Primitive Helpers ---
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isBootstrapAdmin() {
+      return isVerifiedUser() && request.auth.token.email == 'marakaoude@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrapAdmin() || (isVerifiedUser() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    // --- Validation Blueprints ---
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['uid', 'displayName', 'role', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'photoURL', 'role', 'videoCredits', 'createdAt', 'updatedAt'])
+        && isValidId(data.uid)
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80
+        && (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 500))
+        && data.role in ['fan', 'artist', 'admin']
+        && (!('videoCredits' in data) || (data.videoCredits is number && data.videoCredits >= 0 && data.videoCredits <= 10000))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidUserPrivateInfo(data) {
+      return data.keys().hasAll(['uid', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'phone', 'updatedAt'])
+        && isValidId(data.uid)
+        && (!('email' in data) || (data.email is string && data.email.size() <= 200))
+        && (!('phone' in data) || (data.phone is string && data.phone.size() <= 32))
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidVideoJob(data) {
+      return data.keys().hasAll(['id', 'ownerId', 'operationName', 'status', 'prompt', 'aspectRatio', 'resolution', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'ownerId', 'operationName', 'status', 'prompt', 'aspectRatio', 'resolution', 'videoUrl', 'musicGenre', 'cameraMovement', 'visualEffects', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && isValidId(data.ownerId)
+        && data.operationName is string && data.operationName.size() >= 1 && data.operationName.size() <= 256
+        && data.status in ['starting', 'rendering', 'completed', 'failed']
+        && data.prompt is string && data.prompt.size() >= 1 && data.prompt.size() <= 4000
+        && data.aspectRatio in ['9:16', '16:9']
+        && data.resolution in ['720p', '1080p']
+        && (!('videoUrl' in data) || (data.videoUrl is string && data.videoUrl.size() <= 500))
+        && (!('musicGenre' in data) || (data.musicGenre is string && data.musicGenre.size() <= 100))
+        && (!('cameraMovement' in data) || (data.cameraMovement is string && data.cameraMovement.size() <= 100))
+        && (!('visualEffects' in data) || (
+          data.visualEffects is list
+          && data.visualEffects.size() <= 6
+          && (data.visualEffects.size() == 0 || (data.visualEffects[0] is string && data.visualEffects[0].size() <= 80))
+        ))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidConcertTicket(data) {
+      return data.keys().hasAll(['id', 'ownerId', 'concertId', 'concertTitle', 'artistName', 'stadiumName', 'city', 'concertDate', 'tier', 'categoryName', 'priceFCFA', 'seatNumber', 'gateNumber', 'qrHash', 'status', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'ownerId', 'concertId', 'concertTitle', 'artistName', 'stadiumName', 'city', 'concertDate', 'tier', 'categoryName', 'priceFCFA', 'seatNumber', 'gateNumber', 'qrHash', 'status', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && isValidId(data.ownerId)
+        && isValidId(data.concertId)
+        && data.concertTitle is string && data.concertTitle.size() >= 1 && data.concertTitle.size() <= 160
+        && data.artistName is string && data.artistName.size() >= 1 && data.artistName.size() <= 100
+        && data.stadiumName is string && data.stadiumName.size() >= 1 && data.stadiumName.size() <= 120
+        && data.city is string && data.city.size() >= 1 && data.city.size() <= 80
+        && data.concertDate is string && data.concertDate.size() >= 1 && data.concertDate.size() <= 60
+        && data.tier in ['standard', 'vip', 'vvip']
+        && data.categoryName is string && data.categoryName.size() >= 1 && data.categoryName.size() <= 80
+        && data.priceFCFA is number && data.priceFCFA >= 0 && data.priceFCFA <= 10000000
+        && data.seatNumber is string && data.seatNumber.size() >= 1 && data.seatNumber.size() <= 40
+        && data.gateNumber is string && data.gateNumber.size() >= 1 && data.gateNumber.size() <= 40
+        && data.qrHash is string && data.qrHash.size() >= 6 && data.qrHash.size() <= 160
+        && data.status in ['valid', 'used', 'cancelled']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidFanReview(data) {
+      return data.keys().hasAll(['id', 'ownerId', 'authorName', 'rating', 'comment', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'ownerId', 'authorName', 'authorPhotoURL', 'rating', 'comment', 'createdAt', 'updatedAt'])
+        && isValidId(data.id)
+        && isValidId(data.ownerId)
+        && data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 80
+        && (!('authorPhotoURL' in data) || (data.authorPhotoURL is string && data.authorPhotoURL.size() <= 500))
+        && data.rating is number && data.rating >= 1 && data.rating <= 5
+        && data.comment is string && data.comment.size() >= 1 && data.comment.size() <= 1000
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAdminRecord(data) {
+      return data.keys().hasAll(['uid', 'createdAt'])
+        && data.keys().hasOnly(['uid', 'createdAt'])
+        && isValidId(data.uid)
+        && data.createdAt is timestamp;
+    }
+
+    // --- Collection Rules ---
+
+    // 1. Public User Profiles (No PII)
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isBootstrapAdmin();
+      allow create: if isVerifiedUser()
+        && isValidId(userId)
+        && isValidUserProfile(incoming())
+        && incoming().uid == userId
+        && (isAdmin() || (isOwner(userId) && incoming().role == 'fan'))
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser()
+        && isValidId(userId)
+        && isValidUserProfile(incoming())
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (isAdmin() || (
+          isOwner(userId)
+          && incoming().role == existing().role
+          && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'videoCredits', 'updatedAt'])
+        ));
+      allow delete: if isAdmin() && isValidId(userId);
+
+      // Isolated Private PII Subcollection
+      match /private/{docId} {
+        allow get: if isValidId(userId) && isValidId(docId) && docId == 'info' && (isOwner(userId) || isAdmin());
+        allow list: if false;
+        allow create: if isVerifiedUser()
+          && isValidId(userId)
+          && isValidId(docId)
+          && docId == 'info'
+          && isValidUserPrivateInfo(incoming())
+          && incoming().uid == userId
+          && (isOwner(userId) || isAdmin())
+          && incoming().updatedAt == request.time
+          && (exists(/databases/$(database)/documents/users/$(userId)) || existsAfter(/databases/$(database)/documents/users/$(userId)));
+        allow update: if isVerifiedUser()
+          && isValidId(userId)
+          && isValidId(docId)
+          && docId == 'info'
+          && isValidUserPrivateInfo(incoming())
+          && incoming().uid == existing().uid
+          && (isOwner(userId) || isAdmin())
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['email', 'phone', 'updatedAt']);
+        allow delete: if isAdmin() && isValidId(userId) && isValidId(docId);
+      }
+    }
+
+    // 2. Veo 3.1 Video Generation History
+    match /videoJobs/{jobId} {
+      allow get: if isSignedIn() && isValidId(jobId) && (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.ownerId == request.auth.uid || isBootstrapAdmin());
+      allow create: if isVerifiedUser()
+        && isValidId(jobId)
+        && isValidVideoJob(incoming())
+        && incoming().id == jobId
+        && incoming().ownerId == request.auth.uid
+        && incoming().status in ['starting', 'rendering', 'completed']
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser()
+        && isValidId(jobId)
+        && isValidVideoJob(incoming())
+        && incoming().id == existing().id
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (isAdmin() || (
+          existing().ownerId == request.auth.uid
+          && existing().status != 'completed'
+          && existing().status != 'failed'
+          && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'videoUrl', 'operationName', 'updatedAt'])
+        ));
+      allow delete: if isVerifiedUser() && isValidId(jobId) && (existing().ownerId == request.auth.uid || isAdmin());
+    }
+
+    // 3. Concert Tickets
+    match /tickets/{ticketId} {
+      allow get: if isSignedIn() && isValidId(ticketId) && (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.ownerId == request.auth.uid || isBootstrapAdmin());
+      allow create: if isVerifiedUser()
+        && isValidId(ticketId)
+        && isValidConcertTicket(incoming())
+        && incoming().id == ticketId
+        && incoming().ownerId == request.auth.uid
+        && incoming().status == 'valid'
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser()
+        && isValidId(ticketId)
+        && isValidConcertTicket(incoming())
+        && incoming().id == existing().id
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (isAdmin() || (
+          existing().ownerId == request.auth.uid
+          && existing().status == 'valid'
+          && incoming().status == 'cancelled'
+          && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+        ));
+      allow delete: if isAdmin() && isValidId(ticketId);
+    }
+
+    // 4. Fan Reviews & Ratings
+    match /fanReviews/{reviewId} {
+      allow read: if true;
+      allow create: if isVerifiedUser()
+        && isValidId(reviewId)
+        && isValidFanReview(incoming())
+        && incoming().id == reviewId
+        && incoming().ownerId == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser()
+        && isValidId(reviewId)
+        && isValidFanReview(incoming())
+        && incoming().id == existing().id
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (isAdmin() || existing().ownerId == request.auth.uid);
+      allow delete: if isVerifiedUser() && isValidId(reviewId) && (isAdmin() || existing().ownerId == request.auth.uid);
+    }
+
+    // 5. Admin Registry
+    match /admins/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isBootstrapAdmin();
+      allow create: if isAdmin()
+        && isValidId(userId)
+        && isValidAdminRecord(incoming())
+        && incoming().uid == userId
+        && incoming().createdAt == request.time;
+      allow update: if false;
+      allow delete: if isAdmin() && isValidId(userId);
+    }
+  }
+}

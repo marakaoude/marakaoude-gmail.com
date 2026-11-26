@@ -27,9 +27,17 @@ import { MusicGenreSelector } from './components/MusicGenreSelector';
 import { GenerationProgress } from './components/GenerationProgress';
 import { VideoPlayerCard } from './components/VideoPlayerCard';
 import { HistoryGallery } from './components/HistoryGallery';
+import { FanReviewsSection } from './components/FanReviewsSection';
+import { CreditRechargeModal } from './components/payment/CreditRechargeModal';
 import { AspectRatio, Resolution, GenerationJob, MusicGenre, VisualEffectOption } from './types';
 import { DEFAULT_CONCERT_PROMPT, OUDE_MILL_SAMPLE_IMAGE, MUSIC_GENRES } from './data/presets';
 import { stadiumAudio } from './utils/audioSimulator';
+import { useFirebase } from './context/FirebaseContext';
+import {
+  saveVideoJobToFirestore,
+  subscribeUserVideoJobs,
+  deleteVideoJobFromFirestore,
+} from './services/firestoreService';
 
 export interface CameraMovementOption {
   id: string;
@@ -158,13 +166,35 @@ export default function App() {
   const [soundActive, setSoundActive] = useState<boolean>(false);
   const [showSplash, setShowSplash] = useState<boolean>(true);
 
+  const { user, isAuthReady, videoCredits, addCredits } = useFirebase();
+
   const [activeJob, setActiveJob] = useState<GenerationJob | null>(null);
   const [completedJob, setCompletedJob] = useState<GenerationJob | null>(null);
   const [historyJobs, setHistoryJobs] = useState<GenerationJob[]>([]);
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [generalError, setGeneralError] = useState<string | null>(null);
+  const [isRechargeModalOpen, setIsRechargeModalOpen] = useState(false);
 
   const pollIntervalRef = useRef<any>(null);
+  const userRef = useRef(user);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  // Subscribe to Firestore video generation history when authenticated
+  useEffect(() => {
+    if (!isAuthReady || !user || !user.emailVerified) {
+      setHistoryJobs([]);
+      return;
+    }
+
+    const unsubscribe = subscribeUserVideoJobs(user.uid, (jobs) => {
+      setHistoryJobs(jobs);
+    });
+
+    return () => unsubscribe();
+  }, [isAuthReady, user]);
 
   // Auto-dismiss splash screen after 2.4s, or user can click/tap to dismiss
   useEffect(() => {
@@ -289,6 +319,15 @@ export default function App() {
         setGeneralError('Veuillez fournir une photo ou un prompt pour générer la vidéo.');
         return;
       }
+
+      if (videoCredits <= 0) {
+        setGeneralError("Solde de crédits vidéo épuisé (0 crédits). Veuillez recharger vos crédits pour lancer un tournage Veo 3.1.");
+        setIsRechargeModalOpen(true);
+        return;
+      }
+
+      // Deduct 1 credit for video generation
+      await addCredits(-1);
 
       // Trigger stadium sound effect
       stadiumAudio.triggerBassDrop();
@@ -423,7 +462,15 @@ export default function App() {
 
           setActiveJob(null);
           setCompletedJob(finalJob);
-          setHistoryJobs((prev) => [finalJob, ...prev]);
+
+          const activeUser = userRef.current;
+          if (activeUser && activeUser.emailVerified) {
+            saveVideoJobToFirestore(activeUser.uid, finalJob).catch((err) => {
+              console.error('Firestore video job save failed:', err);
+            });
+          } else {
+            setHistoryJobs((prev) => [finalJob, ...prev]);
+          }
 
           // Bass drop on finish
           stadiumAudio.triggerBassDrop();
@@ -582,15 +629,18 @@ export default function App() {
 
         {/* Completed Video Player */}
         {completedJob && !activeJob && (
-          <VideoPlayerCard
-            operationName={completedJob.operationName}
-            videoUrl={completedJob.videoUrl}
-            originalPhoto={completedJob.photoUrl}
-            aspectRatio={completedJob.aspectRatio}
-            promptUsed={completedJob.prompt}
-            musicGenre={completedJob.musicGenre || selectedGenre.name}
-            onRegenerate={startVideoGeneration}
-          />
+          <div className="space-y-6">
+            <VideoPlayerCard
+              operationName={completedJob.operationName}
+              videoUrl={completedJob.videoUrl}
+              originalPhoto={completedJob.photoUrl}
+              aspectRatio={completedJob.aspectRatio}
+              promptUsed={completedJob.prompt}
+              musicGenre={completedJob.musicGenre || selectedGenre.name}
+              onRegenerate={startVideoGeneration}
+            />
+            <FanReviewsSection />
+          </div>
         )}
 
         {/* Workspace: 2 Column Layout (Uploader + Prompt & Director Studio) */}
@@ -897,10 +947,24 @@ export default function App() {
         <HistoryGallery
           jobs={historyJobs}
           onSelectJob={(job) => setCompletedJob(job)}
-          onClearHistory={() => setHistoryJobs([])}
+          onClearHistory={() => {
+            if (user && user.emailVerified && historyJobs.length > 0) {
+              const idsToDelete = historyJobs.map((j) => j.id);
+              Promise.all(idsToDelete.map((id) => deleteVideoJobFromFirestore(id))).catch((err) => {
+                console.error('Firestore history clear failed:', err);
+              });
+            }
+            setHistoryJobs([]);
+          }}
         />
       </div>
     </AppShell>
+
+    {/* Credit Recharge Modal */}
+    <CreditRechargeModal
+      isOpen={isRechargeModalOpen}
+      onClose={() => setIsRechargeModalOpen(false)}
+    />
     </>
   );
 }

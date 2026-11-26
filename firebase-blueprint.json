@@ -1,0 +1,364 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Public profile for an authenticated BGla Mac user",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Authentication user UID",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Public display name",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "Public avatar URL",
+          "maxLength": 500
+        },
+        "role": {
+          "type": "string",
+          "description": "Account role",
+          "enum": ["fan", "artist", "admin"]
+        },
+        "videoCredits": {
+          "type": "number",
+          "description": "Available Veo 3.1 generation credits"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when created"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when last updated"
+        }
+      },
+      "required": ["uid", "displayName", "role", "createdAt", "updatedAt"]
+    },
+    "UserPrivateInfo": {
+      "title": "UserPrivateInfo",
+      "description": "Isolated private PII for an authenticated user",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Owner UID",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Private email address",
+          "maxLength": 200
+        },
+        "phone": {
+          "type": "string",
+          "description": "Private phone number for Mobile Money",
+          "maxLength": 32
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when updated"
+        }
+      },
+      "required": ["uid", "updatedAt"]
+    },
+    "VideoJob": {
+      "title": "VideoJob",
+      "description": "Saved Veo 3.1 concert video generation record owned by a user",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Document ID",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "Owner Firebase UID",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "operationName": {
+          "type": "string",
+          "description": "Veo operation identifier",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "status": {
+          "type": "string",
+          "description": "Generation status",
+          "enum": ["starting", "rendering", "completed", "failed"]
+        },
+        "prompt": {
+          "type": "string",
+          "description": "Cinematic prompt used",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "aspectRatio": {
+          "type": "string",
+          "description": "Video aspect ratio",
+          "enum": ["9:16", "16:9"]
+        },
+        "resolution": {
+          "type": "string",
+          "description": "Video resolution",
+          "enum": ["720p", "1080p"]
+        },
+        "videoUrl": {
+          "type": "string",
+          "description": "Stream endpoint URL",
+          "maxLength": 500
+        },
+        "musicGenre": {
+          "type": "string",
+          "description": "Selected music genre",
+          "maxLength": 100
+        },
+        "cameraMovement": {
+          "type": "string",
+          "description": "Selected camera movement",
+          "maxLength": 100
+        },
+        "visualEffects": {
+          "type": "array",
+          "description": "Selected stage visual effects (max 6)"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp"
+        }
+      },
+      "required": ["id", "ownerId", "operationName", "status", "prompt", "aspectRatio", "resolution", "createdAt", "updatedAt"]
+    },
+    "ConcertTicket": {
+      "title": "ConcertTicket",
+      "description": "Concert ticket purchased and owned by a user",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Ticket ID",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "Buyer Firebase UID",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "concertId": {
+          "type": "string",
+          "description": "Concert event ID",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "concertTitle": {
+          "type": "string",
+          "description": "Concert title",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "artistName": {
+          "type": "string",
+          "description": "Artist name",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "stadiumName": {
+          "type": "string",
+          "description": "Stadium venue name",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "city": {
+          "type": "string",
+          "description": "Venue city",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "concertDate": {
+          "type": "string",
+          "description": "Concert date label",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "tier": {
+          "type": "string",
+          "description": "Ticket tier",
+          "enum": ["standard", "vip", "vvip"]
+        },
+        "categoryName": {
+          "type": "string",
+          "description": "Category display name",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "priceFCFA": {
+          "type": "number",
+          "description": "Ticket price in FCFA"
+        },
+        "seatNumber": {
+          "type": "string",
+          "description": "Assigned seat number",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "gateNumber": {
+          "type": "string",
+          "description": "Stadium entrance gate",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "qrHash": {
+          "type": "string",
+          "description": "Unique QR verification hash",
+          "minLength": 6,
+          "maxLength": 160
+        },
+        "status": {
+          "type": "string",
+          "description": "Ticket validation status",
+          "enum": ["valid", "used", "cancelled"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp"
+        }
+      },
+      "required": ["id", "ownerId", "concertId", "concertTitle", "artistName", "stadiumName", "city", "concertDate", "tier", "categoryName", "priceFCFA", "seatNumber", "gateNumber", "qrHash", "status", "createdAt", "updatedAt"]
+    },
+    "FanReview": {
+      "title": "FanReview",
+      "description": "Fan review and comment on a generated concert performance",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Review document ID",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "Author Firebase UID",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "authorName": {
+          "type": "string",
+          "description": "Author display name",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "authorPhotoURL": {
+          "type": "string",
+          "description": "Author avatar photo URL",
+          "maxLength": 500
+        },
+        "rating": {
+          "type": "number",
+          "description": "Rating score from 1 to 5"
+        },
+        "comment": {
+          "type": "string",
+          "description": "Review comment text",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp"
+        }
+      },
+      "required": ["id", "ownerId", "authorName", "rating", "comment", "createdAt", "updatedAt"]
+    },
+    "AdminRecord": {
+      "title": "AdminRecord",
+      "description": "Admin authorization record",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Admin UID",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp"
+        }
+      },
+      "required": ["uid", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Public user profile (no PII)"
+    },
+    "/users/{userId}/private/{docId}": {
+      "schema": { "$ref": "#/entities/UserPrivateInfo" },
+      "description": "Isolated private user PII (email, phone)"
+    },
+    "/videoJobs/{jobId}": {
+      "schema": { "$ref": "#/entities/VideoJob" },
+      "description": "User-owned Veo 3.1 concert video generation history"
+    },
+    "/tickets/{ticketId}": {
+      "schema": { "$ref": "#/entities/ConcertTicket" },
+      "description": "User-owned concert tickets with QR hash and terminal status locking"
+    },
+    "/fanReviews/{reviewId}": {
+      "schema": { "$ref": "#/entities/FanReview" },
+      "description": "Public community fan reviews and ratings for concert performances"
+    },
+    "/admins/{userId}": {
+      "schema": { "$ref": "#/entities/AdminRecord" },
+      "description": "Trusted admin UID registry"
+    }
+  }
+}

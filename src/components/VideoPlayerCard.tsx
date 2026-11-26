@@ -624,6 +624,16 @@ export const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
           <div className="flex items-center gap-3">
             <button
               type="button"
+              onClick={() => handleQuickDownload(false)}
+              disabled={isDownloading}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 font-bold transition-all cursor-pointer"
+              title="Sauvegarder la vidéo générée sur votre appareil"
+            >
+              <Download className="w-3.5 h-3.5 text-emerald-400" />
+              <span>{isDownloading ? 'Téléchargement...' : 'Sauvegarder la vidéo'}</span>
+            </button>
+            <button
+              type="button"
               onClick={() => setShowPromptDetails(!showPromptDetails)}
               className="text-zinc-400 hover:text-white underline text-[11px] cursor-pointer"
             >

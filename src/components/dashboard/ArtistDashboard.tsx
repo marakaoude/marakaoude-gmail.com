@@ -27,10 +27,13 @@ import {
   Zap,
   ArrowDownLeft,
   Building2,
+  Coins,
 } from 'lucide-react';
 import { ConcertEvent, ArtistProfile, ArtistTrack, PaymentProvider, CreatorAccountData, PayoutItem } from '../../types';
 import { INITIAL_ARTIST, INITIAL_CONCERTS, INITIAL_TRACKS } from '../../data/mockData';
 import { apiClient } from '../../utils/apiClient';
+import { useFirebase } from '../../context/FirebaseContext';
+import { CreditRechargeModal } from '../payment/CreditRechargeModal';
 
 interface ArtistDashboardProps {
   onOpenScanner: () => void;
@@ -44,6 +47,9 @@ export const ArtistDashboard: React.FC<ArtistDashboardProps> = ({
   const [artist, setArtist] = useState<ArtistProfile>(INITIAL_ARTIST);
   const [concerts, setConcerts] = useState<ConcertEvent[]>(INITIAL_CONCERTS);
   const [tracks, setTracks] = useState<ArtistTrack[]>(INITIAL_TRACKS);
+
+  const { videoCredits } = useFirebase();
+  const [isRechargeModalOpen, setIsRechargeModalOpen] = useState(false);
 
   // Live Creator Account data from server database
   const [creatorData, setCreatorData] = useState<CreatorAccountData | null>(null);
@@ -365,6 +371,35 @@ export const ArtistDashboard: React.FC<ArtistDashboardProps> = ({
                 <CheckCircle2 className="w-3 h-3" /> Actif jusqu'au {artist.subscriptionRenewsAt}
               </div>
             </div>
+          </div>
+
+          {/* Credits Counter Card */}
+          <div className="p-5 rounded-2xl bg-gradient-to-r from-[#1b1811] via-[#151515] to-[#1b1811] border border-[#D4AF37]/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-xl bg-[#D4AF37] text-black font-extrabold shadow-md shadow-[#D4AF37]/20">
+                <Coins className="w-6 h-6" />
+              </div>
+              <div>
+                <span className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-wider block">
+                  Solde de Crédits Veo 3.1
+                </span>
+                <h4 className="text-lg font-black text-white font-mono">
+                  {videoCredits} crédits disponibles
+                </h4>
+                <p className="text-xs text-zinc-400">
+                  Chaque génération de vidéo de concert consomme 1 crédit.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsRechargeModalOpen(true)}
+              className="px-5 py-3 rounded-xl bg-[#D4AF37] hover:bg-[#e0bc45] text-black font-black text-xs uppercase tracking-wider shadow-lg shadow-[#D4AF37]/20 transition-all cursor-pointer flex items-center gap-2"
+            >
+              <Sparkles className="w-4 h-4 fill-current" />
+              <span>Recharger mes Crédits</span>
+            </button>
           </div>
 
           {/* Breakdown by Tier (Standard, VIP, VVIP) */}
@@ -1219,6 +1254,12 @@ export const ArtistDashboard: React.FC<ArtistDashboardProps> = ({
           </div>
         </div>
       )}
+
+      {/* Credit Recharge Modal */}
+      <CreditRechargeModal
+        isOpen={isRechargeModalOpen}
+        onClose={() => setIsRechargeModalOpen(false)}
+      />
     </div>
   );
 };

@@ -354,3 +354,14 @@ export interface ArtistTrack {
   coverUrl: string;
   audioPreview?: string;
 }
+
+export interface FanReview {
+  id: string;
+  ownerId: string;
+  authorName: string;
+  authorPhotoURL?: string;
+  rating: number;
+  comment: string;
+  createdAt: number;
+}
+

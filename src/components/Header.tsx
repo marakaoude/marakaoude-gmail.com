@@ -11,8 +11,12 @@ import {
   Crown,
   LayoutDashboard,
   Zap,
+  LogIn,
+  LogOut,
+  User as UserIcon,
 } from 'lucide-react';
 import { AspectRatio } from '../types';
+import { useFirebase } from '../context/FirebaseContext';
 
 interface HeaderProps {
   aspectRatio: AspectRatio;
@@ -47,6 +51,9 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenArchitecture,
   onOpenSplash,
 }) => {
+  const { user, isAuthReady, isAdmin, isSigningIn, authError, signIn, logout, clearAuthError } =
+    useFirebase();
+
   return (
     <header className="header sticky top-0 z-40 backdrop-blur-xl bg-[#0b0d14]/90 border-b border-zinc-800/80 px-3 sm:px-6 lg:px-8 py-3 transition-all">
       <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
@@ -224,8 +231,68 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="hidden sm:inline">Rendu en cours...</span>
             </div>
           )}
+
+          {/* Google Firebase Auth Control */}
+          {isAuthReady && (
+            user ? (
+              <div className="flex items-center gap-1.5 pl-1.5 pr-1 py-1 rounded-xl bg-[#181818] border border-[#2c2c2c]">
+                {user.photoURL ? (
+                  <img
+                    src={user.photoURL}
+                    alt={user.displayName || 'Profil'}
+                    className="w-6 h-6 rounded-lg object-cover border border-[#D4AF37]/50"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="w-6 h-6 rounded-lg bg-[#D4AF37]/20 flex items-center justify-center text-[#D4AF37]">
+                    <UserIcon className="w-3.5 h-3.5" />
+                  </div>
+                )}
+                <span className="hidden sm:inline text-[11px] font-bold text-white max-w-[110px] truncate">
+                  {user.displayName?.split(' ')[0] || 'Compte'}
+                </span>
+                {isAdmin && (
+                  <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40 uppercase">
+                    Admin
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={logout}
+                  title="Se déconnecter"
+                  className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={signIn}
+                disabled={isSigningIn}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#D4AF37] hover:bg-[#e6c148] text-black font-extrabold text-xs shadow-md shadow-[#D4AF37]/20 transition-all cursor-pointer disabled:opacity-60"
+                title="Se connecter avec Google pour synchroniser vos vidéos et billets"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>{isSigningIn ? 'Connexion...' : 'Connexion Google'}</span>
+              </button>
+            )
+          )}
         </div>
       </div>
+
+      {authError && (
+        <div className="max-w-7xl mx-auto mt-2 px-3 py-1.5 rounded-xl bg-rose-950/60 border border-rose-500/40 text-xs text-rose-200 flex items-center justify-between gap-2">
+          <span>{authError}</span>
+          <button
+            type="button"
+            onClick={clearAuthError}
+            className="text-rose-300 hover:text-white font-bold cursor-pointer"
+          >
+            Fermer
+          </button>
+        </div>
+      )}
     </header>
   );
 };
